@@ -4,16 +4,22 @@ using UnityEngine;
 
 public class DiceComponent : MonoBehaviour
 {
-    // Start is called before the first frame update
+    Rigidbody rb;
+
     void Start()
+    {
+        rb = GetComponent<Rigidbody>();
+    }
+
+    // Update is called once per frame
+    void FixedUpdate()
     {
         
     }
 
-    // Update is called once per frame
-    void Update()
+    public bool IsItPickeable()
     {
-        
+        return true;
     }
 
     public bool IsItGridPlacable()

@@ -8,7 +8,10 @@ public class PlacementControl : MonoBehaviour
     GameObject diceCarrier;
 
     [SerializeField]
-    float throwStrength;
+    LayerMask layerToIgnore;
+
+    [SerializeField]
+    float throwStrength, torqueStrength;
 
     DiceComponent diceSelected;
 
@@ -64,12 +67,14 @@ public class PlacementControl : MonoBehaviour
     {
         RaycastHit hit;
 
-        if (Physics.Raycast(ray, out hit, Mathf.Infinity))
+        if (Physics.Raycast(ray, out hit, Mathf.Infinity, ~layerToIgnore))
         {
-            if (hit.collider.GetComponent<DiceComponent>())
+            if (hit.collider.GetComponent<DiceComponent>() && hit.collider.GetComponent<DiceComponent>().IsItPickeable())
             {
                 diceSelected = hit.collider.GetComponent<DiceComponent>();
                 diceSelected.transform.parent = diceCarrier.transform;
+                diceSelected.transform.localPosition = Vector3.zero;
+                diceSelected.transform.localEulerAngles = Vector3.zero;
                 diceSelected.GetComponent<Rigidbody>().isKinematic = true;
             }
         }
@@ -86,7 +91,8 @@ public class PlacementControl : MonoBehaviour
         else
         {
             diceSelected.GetComponent<Rigidbody>().isKinematic = false;
-            diceSelected.GetComponent<Rigidbody>().AddForce((previousPos - diceSelected.transform.position) * throwStrength, ForceMode.Impulse);
+            diceSelected.GetComponent<Rigidbody>().AddForce((diceCarrier.transform.position - previousPos) * throwStrength, ForceMode.Impulse);
+            diceSelected.GetComponent<Rigidbody>().AddTorque((diceCarrier.transform.position - previousPos) * torqueStrength, ForceMode.Impulse);
         }
 
         diceSelected = null;
