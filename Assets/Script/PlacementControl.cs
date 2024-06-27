@@ -13,9 +13,14 @@ public class PlacementControl : MonoBehaviour
     [SerializeField]
     float throwStrength, torqueStrength;
 
+    [SerializeField, Range(0.01f, 10)]
+    float stepForGrab, smoothDampDiceCarrier;
+
     DiceComponent diceSelected;
 
     Vector3 previousPos;
+
+    Vector3 refVelo;
 
     Ray ray;
 
@@ -24,7 +29,7 @@ public class PlacementControl : MonoBehaviour
         ray = Camera.main.ScreenPointToRay(Input.mousePosition);
 
         ControlPosDiceCarrier();
-        ControlRotDiceCarrier();
+        //ControlRotDiceCarrier();
         ControlDiceGet();
 
         previousPos = diceCarrier.transform.position;
@@ -37,27 +42,38 @@ public class PlacementControl : MonoBehaviour
 
         if (plane.Raycast(ray, out point))
         {
-            diceCarrier.transform.position = ray.GetPoint(point);
+            if (diceSelected != null) diceCarrier.transform.position = Vector3.SmoothDamp(diceCarrier.transform.position, ray.GetPoint(point), ref refVelo, smoothDampDiceCarrier);
+            else diceCarrier.transform.position = ray.GetPoint(point);
         }
     }
 
     void ControlRotDiceCarrier()
     {
-        if (diceSelected != null) return;
+        if (diceSelected == null)
+        {
+            diceCarrier.transform.localEulerAngles = Vector3.zero;
+            return;
+        }
 
+        Vector3 direction = diceCarrier.transform.position - previousPos;
 
+        if (direction != Vector3.zero)
+        {
+            Quaternion targetRotation = Quaternion.LookRotation(direction);
+
+            // Directly set the rotation to the target rotation
+            diceCarrier.transform.rotation = targetRotation;
+        }
     }
 
     void ControlDiceGet()
     {
-        if (Input.GetMouseButtonDown(0))
+        if (Input.GetMouseButtonDown(0) && diceSelected == null)
         {
             GrabDice();
         }
 
-        if (diceSelected == null) return;
-
-        if (Input.GetMouseButtonUp(0))
+        if (Input.GetMouseButtonUp(0) && diceSelected != null)
         {
             ReleaseDice();
         }
@@ -73,8 +89,7 @@ public class PlacementControl : MonoBehaviour
             {
                 diceSelected = hit.collider.GetComponent<DiceComponent>();
                 diceSelected.transform.parent = diceCarrier.transform;
-                diceSelected.transform.localPosition = Vector3.zero;
-                diceSelected.transform.localEulerAngles = Vector3.zero;
+                StartCoroutine(DicePosMover());
                 diceSelected.GetComponent<Rigidbody>().isKinematic = true;
             }
         }
@@ -83,6 +98,8 @@ public class PlacementControl : MonoBehaviour
     void ReleaseDice()
     {
         diceSelected.transform.parent = null;
+
+        StopCoroutine(DicePosMover());
 
         if (diceSelected.IsItGridPlacable())
         {
@@ -96,5 +113,25 @@ public class PlacementControl : MonoBehaviour
         }
 
         diceSelected = null;
+    }
+
+    IEnumerator DicePosMover()
+    {
+        Vector3 basePos = diceSelected.transform.localPosition;
+        Vector3 baseRot = diceSelected.transform.localEulerAngles;
+        float t = 0;
+
+        while (t < 1)
+        {
+            t += stepForGrab * Time.fixedDeltaTime;
+
+            diceSelected.transform.localPosition = Vector3.Lerp(basePos, Vector3.zero, t);
+            diceSelected.transform.localEulerAngles = Vector3.Lerp(baseRot, Vector3.zero, t);
+
+            yield return new WaitForFixedUpdate();
+        }
+
+        diceSelected.transform.localPosition = Vector3.zero;
+        diceSelected.transform.localEulerAngles = Vector3.zero;
     }
 }
